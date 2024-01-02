@@ -50,6 +50,7 @@ static NSString *const _endDate = @"endDate";
 static NSString *const _notes = @"notes";
 static NSString *const _url = @"url";
 static NSString *const _allDay = @"allDay";
+static NSString *const _recurrence = @"recurrence";
 
 static NSString *const MODULE_NAME= @"AddCalendarEvent";
 
@@ -174,6 +175,12 @@ RCT_EXPORT_METHOD(presentEventEditingDialog:(NSDictionary *)options resolver:(RC
     if (options[_allDay]) {
         event.allDay = [RCTConvert BOOL:options[_allDay]];
     }
+    if (options[_recurrence]) {
+        EKRecurrenceRule *rule = [self createRecurrenceRule:options[_recurrence] interval:0 occurrence:0 endDate:nil days: nil weekPositionInMonth: 0];
+        if (rule) {
+            event.recurrenceRules = [NSArray arrayWithObject:rule];
+        }
+    }
     return event;
 }
 
@@ -254,6 +261,102 @@ RCT_EXPORT_METHOD(presentEventEditingDialog:(NSDictionary *)options resolver:(RC
         self.resolver(result);
         [self resetPromises];
     }
+}
+
+-(EKRecurrenceRule *)createRecurrenceRule:(NSString *)frequency interval:(NSInteger)interval occurrence:(NSInteger)occurrence endDate:(NSDate *)endDate days:(NSArray *)days weekPositionInMonth:(NSInteger) weekPositionInMonth
+{
+    EKRecurrenceRule *rule = nil;
+    EKRecurrenceEnd *recurrenceEnd = nil;
+    NSInteger recurrenceInterval = 1;
+    NSArray *validFrequencyTypes = @[@"daily", @"weekly", @"monthly", @"yearly"];
+    NSArray *daysOfTheWeekRecurrence = [self createRecurrenceDaysOfWeek:days];
+    NSMutableArray *setPositions = nil;
+
+    if (frequency && [validFrequencyTypes containsObject:frequency]) {
+
+        if (endDate) {
+            recurrenceEnd = [EKRecurrenceEnd recurrenceEndWithEndDate:endDate];
+        } else if (occurrence && occurrence > 0) {
+            recurrenceEnd = [EKRecurrenceEnd recurrenceEndWithOccurrenceCount:occurrence];
+        }
+
+        if (interval > 1) {
+            recurrenceInterval = interval;
+        }
+
+        if (weekPositionInMonth > 0) {
+            setPositions = [NSMutableArray array];
+            [setPositions addObject:[NSNumber numberWithInteger: weekPositionInMonth ]];
+        }
+        rule = [[EKRecurrenceRule alloc] initRecurrenceWithFrequency:[self frequencyMatchingName:frequency]
+                                                            interval:recurrenceInterval
+                                                                 daysOfTheWeek:daysOfTheWeekRecurrence
+                                                                 daysOfTheMonth:nil
+                                                                 monthsOfTheYear:nil
+                                                                 weeksOfTheYear:nil
+                                                                 daysOfTheYear:nil
+                                                                 setPositions:setPositions
+                                                                 end:recurrenceEnd];
+    }
+    return rule;
+}
+
+-(NSMutableArray *) createRecurrenceDaysOfWeek: (NSArray *) days
+{
+    NSMutableArray *daysOfTheWeek = nil;
+
+    if (days.count) {
+        daysOfTheWeek = [[NSMutableArray alloc] init];
+
+        for (NSString *day in days) {
+            EKRecurrenceDayOfWeek *weekDay = [self dayOfTheWeekMatchingName: day];
+            [daysOfTheWeek addObject:weekDay];
+
+        }
+    }
+
+    return daysOfTheWeek;
+}
+
+-(EKRecurrenceDayOfWeek *) dayOfTheWeekMatchingName: (NSString *) day
+{
+    EKRecurrenceDayOfWeek *weekDay = nil;
+
+    if ([day isEqualToString:@"MO"]) {
+        weekDay = [EKRecurrenceDayOfWeek dayOfWeek:2];
+    } else if ([day isEqualToString:@"TU"]) {
+        weekDay = [EKRecurrenceDayOfWeek dayOfWeek:3];
+    } else if ([day isEqualToString:@"WE"]) {
+        weekDay = [EKRecurrenceDayOfWeek dayOfWeek:4];
+    } else if ([day isEqualToString:@"TH"]) {
+        weekDay = [EKRecurrenceDayOfWeek dayOfWeek:5];
+    } else if ([day isEqualToString:@"FR"]) {
+        weekDay = [EKRecurrenceDayOfWeek dayOfWeek:6];
+    } else if ([day isEqualToString:@"SA"]) {
+        weekDay = [EKRecurrenceDayOfWeek dayOfWeek:7];
+    } else if ([day isEqualToString:@"SU"]) {
+        weekDay = [EKRecurrenceDayOfWeek dayOfWeek:1];
+    }
+
+    NSLog(@"%s", "dayOfTheWeek");
+    NSLog(@"%@", weekDay);
+    return weekDay;
+}
+
+-(EKRecurrenceFrequency)frequencyMatchingName:(NSString *)name
+{
+    EKRecurrenceFrequency recurrence = nil;
+
+    if ([name isEqualToString:@"weekly"]) {
+        recurrence = EKRecurrenceFrequencyWeekly;
+    } else if ([name isEqualToString:@"monthly"]) {
+        recurrence = EKRecurrenceFrequencyMonthly;
+    } else if ([name isEqualToString:@"yearly"]) {
+        recurrence = EKRecurrenceFrequencyYearly;
+    } else if ([name isEqualToString:@"daily"]) {
+        recurrence = EKRecurrenceFrequencyDaily;
+    }
+    return recurrence;
 }
 
 @end
