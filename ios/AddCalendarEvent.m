@@ -51,6 +51,8 @@ static NSString *const _notes = @"notes";
 static NSString *const _url = @"url";
 static NSString *const _allDay = @"allDay";
 static NSString *const _recurrence = @"recurrence";
+static NSString *const _recurrenceRule = @"recurrenceRule";
+static NSString *const _occurrenceDate = @"occurrenceDate";
 
 static NSString *const MODULE_NAME= @"AddCalendarEvent";
 
@@ -181,6 +183,17 @@ RCT_EXPORT_METHOD(presentEventEditingDialog:(NSDictionary *)options resolver:(RC
             event.recurrenceRules = [NSArray arrayWithObject:rule];
         }
     }
+     if (options[_recurrenceRule]) {
+        NSString *frequency = [RCTConvert NSString:options[_recurrenceRule][@"frequency"]];
+        NSInteger interval = [RCTConvert NSInteger:options[_recurrenceRule][@"interval"]];
+        NSInteger occurrence = [RCTConvert NSInteger:options[_recurrenceRule][@"occurrence"]];
+        NSDate *endDate = [RCTConvert NSDate:options[_recurrenceRule][@"endDate"]];
+
+        EKRecurrenceRule *rule = [self createRecurrenceRule:frequency interval:interval occurrence:occurrence endDate:endDate days: nil weekPositionInMonth: 0];
+        if (rule) {
+            event.recurrenceRules = [NSArray arrayWithObject:rule];
+        }
+    }
     return event;
 }
 
@@ -274,10 +287,10 @@ RCT_EXPORT_METHOD(presentEventEditingDialog:(NSDictionary *)options resolver:(RC
 
     if (frequency && [validFrequencyTypes containsObject:frequency]) {
 
-        if (endDate) {
-            recurrenceEnd = [EKRecurrenceEnd recurrenceEndWithEndDate:endDate];
-        } else if (occurrence && occurrence > 0) {
+        if (occurrence && occurrence > 0) {
             recurrenceEnd = [EKRecurrenceEnd recurrenceEndWithOccurrenceCount:occurrence];
+        } else if (endDate) {
+            recurrenceEnd = [EKRecurrenceEnd recurrenceEndWithEndDate:endDate];
         }
 
         if (interval > 1) {
