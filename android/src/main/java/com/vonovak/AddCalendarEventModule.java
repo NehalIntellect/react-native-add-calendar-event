@@ -19,6 +19,8 @@ import com.facebook.react.bridge.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ArrayList;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 
 import static com.vonovak.Utils.doesEventExist;
 import static com.vonovak.Utils.extractLastEventId;
@@ -119,6 +121,65 @@ public class AddCalendarEventModule extends ReactContextBaseJavaModule implement
                     calendarIntent.putExtra(CalendarContract.Events.RRULE, rule);
                 }
             }
+            if (config.hasKey("recurrenceRule")) {
+            ReadableMap recurrenceRule = config.getMap("recurrenceRule");
+
+            if (recurrenceRule.hasKey("frequency")) {
+                String frequency = recurrenceRule.getString("frequency");
+                String duration = "PT1H";
+                Integer interval = null;
+                Integer occurrence = null;
+                String endDate = null;
+                ReadableArray daysOfWeek = null;
+                String weekStart = null;
+                Integer weekPositionInMonth = null;
+
+                if (recurrenceRule.hasKey("interval")) {
+                    interval = recurrenceRule.getInt("interval");
+                }
+
+                if (recurrenceRule.hasKey("duration")) {
+                    duration = recurrenceRule.getString("duration");
+                }
+
+                if (recurrenceRule.hasKey("occurrence")) {
+                    occurrence = recurrenceRule.getInt("occurrence");
+                }
+
+                if (recurrenceRule.hasKey("endDate")) {
+                    ReadableType type = recurrenceRule.getType("endDate");
+                    SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'");
+
+                    if (type == ReadableType.String) {
+                        endDate = format.format(format.parse(recurrenceRule.getString("endDate")));
+                    } else if (type == ReadableType.Number) {
+                        Calendar calendar = Calendar.getInstance();
+                        calendar.setTimeInMillis((long)recurrenceRule.getDouble("endDate"));
+                        endDate = format.format(calendar.getTime());
+                    }
+                }
+
+                if (recurrenceRule.hasKey("daysOfWeek")) {
+                    daysOfWeek = recurrenceRule.getArray("daysOfWeek");
+                }
+
+                if (recurrenceRule.hasKey("weekStart")) {
+                    weekStart = recurrenceRule.getString("weekStart");
+                }
+
+                if (recurrenceRule.hasKey("weekPositionInMonth")) {
+                    weekPositionInMonth = recurrenceRule.getInt("weekPositionInMonth");
+                }
+
+                String rule = createRecurrenceRule(frequency, interval, endDate, occurrence, daysOfWeek, weekStart, weekPositionInMonth);
+                if (duration != null) {
+                    calendarIntent.putExtra(CalendarContract.Events.DURATION, duration);
+                }
+                if (rule != null) {
+                    calendarIntent.putExtra(CalendarContract.Events.RRULE, rule);
+                }
+            }
+        }
 
             getReactApplicationContext().startActivityForResult(calendarIntent, ADD_EVENT_REQUEST_CODE, Bundle.EMPTY);
         } catch (Exception e) {
@@ -306,11 +367,11 @@ public class AddCalendarEventModule extends ReactContextBaseJavaModule implement
             rrule += ";INTERVAL=" + interval;
         }
 
-        if (endDate != null) {
-            rrule += ";UNTIL=" + endDate;
-        } else if (occurrence != null) {
+        if (occurrence != null) {
             rrule += ";COUNT=" + occurrence;
-        }
+        } else if (endDate != null) {
+            rrule += ";UNTIL=" + endDate;
+        } 
 
         return rrule;
     }
